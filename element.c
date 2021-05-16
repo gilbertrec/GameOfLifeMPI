@@ -8,35 +8,45 @@
 #define Master(rank) rank==0 ? 1:0
 #define MAX_PROCESSES 10
 
-void create_world(Pworld* p,int n,int m);
+Pworld* create_world(int n,int m);
 void init_world(Pworld * p,int seed);
 void send_matrix(int n,int m);
 
 int main (int argc, char* argv){
     MPI_Init(NULL,NULL);
-    send_matrix(5,5);
+    send_matrix(10,10);
     MPI_Finalize();
 }
 
 
 
-void create_world(Pworld* p,int n,int m){
-    p=(Pworld *)malloc(sizeof(Pworld));
+Pworld* create_world(int n,int m){
+    Pworld * p=(Pworld *)malloc(sizeof(Pworld));
     p->rows=n;
     p->columns=m;
     p->matrix= (char**) malloc(sizeof(char*)*n);   
     for (int i=0;i<n;i++){
         p->matrix[i]=(char*) malloc(sizeof(char)*m);
     }
+    return p;
 }
 
 void init_world(Pworld * p,int seed){
     srand(seed);
 	for (int i=0; i<p->rows; i++){
 		for (int j=0; j<p->columns; j++) {
-			p->matrix[i][j] = rand()%2 +'0';
+			p->matrix[i][j] = (rand()%2) +'0';
 		}
 	}
+}
+
+void print_world(Pworld * p){
+    for(int i=0;i<p->rows;i++){
+        for(int j=0;j<p->columns;j++){
+            printf("%c,",p->matrix[i][j]);
+        }
+        printf("\n");
+    }
 }
 
 void send_matrix(int n,int m){
@@ -68,14 +78,20 @@ void send_matrix(int n,int m){
     if(Master(rank)){
         //consider to switching n to m, in this way we have less array and we can distribute better the portion of the matrices for each process 
         
-        create_world(p,n,m);
-        printf(p->columns);
-        //init_world(p,5);
+        
+        p=create_world(n,m); 
+        init_world(p,5);
     }else{
-        create_world(p,recv_count,m);
+        p=create_world(recv_count,m);
     }
 
-        //MPI_Scatterv(p->matrix,sendcounts,displs,MPI_CHAR,p->matrix,recv_count,MPI_CHAR,0,MPI_COMM_WORLD);
+    MPI_Scatterv(p->matrix,sendcounts,displs,MPI_CHAR,p->matrix,recv_count,MPI_CHAR,0,MPI_COMM_WORLD);
+    printf("Rank %d:Matrix\n",rank);
+    print_world(p);
+    printf("----\n");
+
+
+
 
 
         printf("Rank:%d received all!",rank);

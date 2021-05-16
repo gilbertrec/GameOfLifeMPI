@@ -20,7 +20,7 @@ However, in better cases (for example a submatrices in the corner) we have to se
 
 for this reason we chose one of the first two techniques.
 
-And now ,which of the following two, columns or rows?
+And now, which of the following two, columns or rows?
 
 We have to consider first the size of the matrix,
 Let's consider S a matrix of dimension n*m
