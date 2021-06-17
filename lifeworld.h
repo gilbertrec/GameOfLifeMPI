@@ -1,7 +1,7 @@
 
-//entire world;
+//Matrix world creator for Game of Life in MPI;
 typedef struct {
-    char ** matrix;
+    char * matrix;
     int rows;
     int columns;
     int generation;

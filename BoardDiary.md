@@ -31,3 +31,5 @@ This means that for each element that must be elaborated, the process need to re
 In the other side if we have a great number of process p and p >>m (much greater than),and we divide the matrix by m, we have that each processes has a great number of cells each one, and the internal cells doesn't need communication in order to be computated.
 
 So, after this consideration we decided to divide the matrix in the smaller dimension between rows and columns.
+
+//control the fact that c is a language row oriented.
