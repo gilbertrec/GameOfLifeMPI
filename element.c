@@ -17,7 +17,7 @@ void init_world(Pworld * p,int seed);
 Pworld* scatter_matrix(int n,int m);
 void print_world(Pworld * p);
 void print_all_matrix(Pworld * p);
-
+void print_row(Pworld * p, int i);
 Pworld* compute(Pworld * p,int rank,int world_size);
 
 MPI_Request send_up(Pworld * p,int rank,MPI_Datatype *row,int p_size);
@@ -37,18 +37,22 @@ int main (int argc, char* argv){
     MPI_Comm_size(MPI_COMM_WORLD,&world_size);
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     Pworld* p = scatter_matrix(4,5);
-
-    print_world(p);
     Pworld* updated_p;
     MPI_Datatype row;
     MPI_Type_contiguous(5,MPI_CHAR,&row);
     MPI_Type_commit(&row);
     updated_p = compute(p,rank,world_size);
+
+
+    Pworld* final_p;
+    if(Master(rank)){
+        final_p=create_world(4,5);
+    } 
     printf("END COMPUTE \n");
     MPI_Barrier(MPI_COMM_WORLD);
-    print_world(updated_p);
-    MPI_Barrier(MPI_COMM_WORLD);
-    MPI_Gatherv(&updated_p->matrix[0],sendcounts[rank],row,&p->matrix[displs[1]],sendcounts,displs,row,0,MPI_COMM_WORLD);
+    printf("This is calculated from rank %d:\n",rank);
+    print_all_matrix(updated_p);
+    //MPI_Gatherv(&updated_p->matrix[0],sendcounts[rank],row,&final_p->matrix[displs[1]],sendcounts,displs,row,0,MPI_COMM_WORLD);
     MPI_Barrier(MPI_COMM_WORLD);
     
     if(Master(rank)){
@@ -91,6 +95,16 @@ void print_world(Pworld * p){
     }
 }
 
+//print_world permit to print a single row of the world on stdout
+void print_row(Pworld * p, int i){
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    printf("Stampa la riga %d del rank %d con righe %d:\n",i,rank,p->rows);
+    for(int j=0;j<p->columns;j++){
+        printf("rank%d:%c,",rank,p->matrix[(i*p->columns)+j]);
+    }
+}
+
 //print_world permit to print the world on stdout
 void print_ghost_world(Pworld * p){
     int rank;
@@ -113,6 +127,7 @@ void print_all_matrix(Pworld * p){
         }
         printf("%c,",p->matrix[i]);
     }
+    printf("\n");
 }
 
 /**Permit to send the communication matrix from master to its slave processes**/
@@ -158,67 +173,17 @@ Pworld* scatter_matrix(int n,int m){
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Scatterv(p->matrix,sendcounts,displs,row,p->matrix,recv_count,row,0,MPI_COMM_WORLD);    
     printf("Processore %d",rank);
-    print_world(p);
+
 
     MPI_Barrier(MPI_COMM_WORLD);    
     if(Master(rank)){
-        print_all_matrix(p);
+        p->rows=sendcounts[0];
+        p->matrix=realloc(p->matrix,sizeof(char)*p->rows*p->columns);
     }
     //MPI_Type_free(&row);
     return p;
 }
 
-
-
-//this is for putting also the border lines of communications
-void send_matrixv2(int n,int m){
-    int world_size;
-    int rank;
-    int n_eachp;
-    MPI_Status* status;
-    int sendcounts[MAX_PROCESSES];
-    int *displs=malloc(n*sizeof(int));
-    MPI_Comm_size(MPI_COMM_WORLD,&world_size);
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    int rest=n%world_size;
-    int recv_count;
-    Pworld * p;
-    MPI_Datatype row;
-    n_eachp=n/world_size;
-    MPI_Type_contiguous(m,MPI_CHAR,&row);
-    MPI_Type_commit(&row);
-    if(Master(rank)){
-        //consider to switching n to m, in this way we have less array and we can distribute better the portion of the matrices for each process 
-        p=create_world(n,m);
-        init_world(p,0);
-    }
-    for(int i=0;i<world_size;i++){
-        sendcounts[i]=n_eachp;
-        if(rest>0){
-            sendcounts[i]+=1;
-            rest--;
-        }
-        //now just add the border rows,
-        sendcounts[i]+=2;
-        if(rank==i &&rank!=0){ //if rank==i but not master
-            recv_count=sendcounts[i];
-        }
-        if(i>0)
-            displs[i]=sendcounts[i-1]+displs[i-1]-1;
-        else{
-            displs[i]=0;
-        }
-    }
-    if(!Master(rank)){
-        p=create_world(recv_count,m);
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-    MPI_Scatterv(p->matrix,sendcounts,displs,row,p->matrix,recv_count,row,0,MPI_COMM_WORLD);    
-    printf("Processore %d",rank);
-    
-    print_world(p);
-    MPI_Type_free(&row);
-}
 
 //Compute the generation, returning a new updated world
 Pworld* compute(Pworld * p,int rank,int world_size){
@@ -243,47 +208,37 @@ Pworld* compute(Pworld * p,int rank,int world_size){
     Pworld * top_ghostrow;
 
     top_ghostrow = create_world(1,p->columns);
-    init_world(top_ghostrow,5);
     
     bottom_ghostrow = create_world(1,p->columns);
     
     updated_world = create_world(p->rows,p->columns);
     
-
-    
-    
-
     //if there are more than two rows in the world, it means that there are rows that doesn't need ghosts rows in order to be computed
     if(p->rows>2){
         for(int i=1;i<p->rows-1;i++){
             for(int j=0;j<p->columns;j++){
-
+                printf("OOOOOH È MAGGIORE DI 2!!!");
                 //starting to count the nearest cells
                 int count=0;
 
                 //count alive cells in upper row
                 count+=count_externalrow(p,i-1,j);
-
+                
                 //count alive cells in current row (need to not consider the current cell)
                 count+=count_internalrow(p,i,j);
-                
+
                 //count alive cells in lower row
                 count+=count_externalrow(p,i+1,j);
                 
                 //update cell
-                updated_world->matrix[(p->rows*i)+j] = alive_conditioner(p->matrix[(p->rows*i)+j],count);
+                updated_world->matrix[(p->columns*i)+j] = alive_conditioner(p->matrix[(p->columns*i)+j],count);
+                printf("%d",count);
             }
         }
     }
     //trying to receive the two ghost_rows
-    request_receivetop=receive_up(bottom_ghostrow,rank,&row,world_size);
-    request_receivebottom=receive_down(top_ghostrow,rank,&row,world_size);
-    //MPI_Test(request_receivetop,&received_top,status_receivetop);
-    //printf("Test:%d",received_top);
-    //fflush(stdout);
-    //must wait the two ghost rows
-    //MPI_Wait(request_receivetop,status_receivetop);
-    //MPI_Wait(request_receivebottom,status_receivebottom);
+    request_receivetop=receive_up(top_ghostrow,rank,&row,world_size);
+    request_receivebottom=receive_down(bottom_ghostrow,rank,&row,world_size);
     if(Master(rank)){
         //MPI_Test(request_receivebottom,&received_bottom,status_receivebottom);
         //printf("Test for master:%d",received_bottom);
@@ -292,8 +247,6 @@ Pworld* compute(Pworld * p,int rank,int world_size){
         print_ghost_world(bottom_ghostrow);
     }
 
-    
-    //Compute upper-border row and lower-border row
     for(int j=0;j<p->columns;j++){
         //upper-border row count
 
@@ -301,25 +254,55 @@ Pworld* compute(Pworld * p,int rank,int world_size){
         int count=0;
         //count alive cells in upper ghost-row
         count+=count_externalrow(top_ghostrow,0,j);
+        
+        if(Master(rank))
+            printf("TopExternaltop rank %d:%d",rank,count);
+        
         //count alive cells in current row (need to not consider the current cell)
         count+=count_internalrow(p,0,j);
-        //count alive cells in lower internal row
-        count+=count_externalrow(p,1,j);
-        //update cell
-        updated_world->matrix[(p->rows*0)+j] = alive_conditioner(p->matrix[(p->rows*0)+j],count);
-
-        //lower-border row count
         
+        if(Master(rank))
+            printf("TopInternal rank %d:%d",rank,count);
+        
+        //count alive cells in lower internal row
+        if(p->rows>1){
+            count+=count_externalrow(p,1,j);
+        }else{
+            count+=count_externalrow(bottom_ghostrow,0,j);    
+        }
+
+        if(Master(rank))
+            printf("TopExternalBottom rank %d:%d",rank,count);
+        
+        //update cell
+        updated_world->matrix[(p->columns*0)+j] = alive_conditioner(p->matrix[(p->columns*0)+j],count);
+        if(Master(rank))
+            printf("Top rank %d:%d",rank,count);
+        //lower-border row count
+
         //starting to count for upper-border row
         count=0;
+
         //count alive cells in upper internal row
-        count+=count_externalrow(p,p->rows-2,j);
+        if(p->rows>1){
+            count+=count_externalrow(p,p->rows-2,j);
+            count+=count_internalrow(p,p->rows-1,j);
+            count+=count_externalrow(bottom_ghostrow,0,j);
+            updated_world->matrix[(p->columns*(p->rows-1))+j] = alive_conditioner(p->matrix[(p->columns*(p->rows-1))+j],count);
+        }
         //count alive cells in current row (need to not consider the current cell)
-        count+=count_internalrow(p,p->rows-1,j);
+
         //count alive cells in lower ghost-row
-        count+=count_externalrow(bottom_ghostrow,0,j);
+        
         //update cell
-        updated_world->matrix[(p->rows*(p->rows-1))+j] = alive_conditioner(p->matrix[(p->rows*(p->rows-1))+j],count);
+        if(Master(rank))
+            printf("quindi count è %d\n",count);
+    }
+    //Compute upper-border row and lower-border row
+    if(Master(rank)){
+        printf("This is updated world for master:");
+        print_all_matrix(updated_world);
+        printf("ENdWOrld");
     }
     return updated_world;
 }
@@ -345,7 +328,19 @@ char alive_conditioner(char cell,int count){
 int count_externalrow(Pworld * p,int n,int m){
     int count=0;
     for(int j=m-1;j<m+2;j++){
-        count += isAlive((p->matrix)[(p->rows*n)+j]);
+        if(j<0){
+            printf("\nAnalizzo l'elemento %d per %d,%d %c\n",j,n,m,(p->matrix)[(p->columns*n)+(p->columns-1)]);
+            count += isAlive((p->matrix)[(p->columns*n)+p->columns-1]);    
+        }else{
+            if(j>p->columns-1){
+                printf("\nAnalizzo l'elemento %d per %d,%d %c\n",j,n,m,(p->matrix)[(p->columns*n)]);
+                count += isAlive((p->matrix)[(p->columns*n)]);    
+            }else{
+                printf("\nAnalizzo l'elemento %d per %d,%d %c\n",j,n,m,(p->matrix)[(p->columns*n)+j]);
+                count += isAlive((p->matrix)[(p->columns*n)+j]);
+            }
+        }
+        count += isAlive((p->matrix)[(p->columns*n)+j]);
     }
     return count;
 }
@@ -353,15 +348,38 @@ int count_externalrow(Pworld * p,int n,int m){
 //permit to count the center row of a cell, so excluding the current cell
 int count_internalrow(Pworld * p, int n, int m){
     int count=0;
+    print_row(p,n);
+    
     //valuto il vicino sinistro
-    count += isAlive((p->matrix)[(p->rows*n)+(m-1)]);
+    if(m==0){
+        printf("\nAnalizzo l'elemento sinistro per %d,%d %c\n",n,m,(p->matrix)[(p->columns*n)+(p->columns-1)]);
+        count += isAlive((p->matrix)[(p->columns*n)+(p->columns-1)]);
+    }else{
+        printf("\nAnalizzo l'elemento sinistro per %d,%d %c\n",n,m,(p->matrix)[(p->columns*n)+(m-1)]);
+        count += isAlive((p->matrix)[(p->columns*n)+(m-1)]);
+    }
+
     //valuto il vicino destro
-    count += isAlive((p->matrix)[(p->rows*n)+(m+1)]);
+    if(p->columns-1==m){
+        printf("\nAnalizzo l'elemento destro per %d,%d %c\n",n,m,(p->matrix)[(p->columns*n)+(p->columns-1)]);
+        
+        count += isAlive((p->matrix)[(p->columns*n)]);    
+    }else{
+        printf("\nAnalizzo l'elemento destro per %d,%d %c\n",n,m,(p->matrix)[(p->columns*n)+(m+1)]);
+        count += isAlive((p->matrix)[(p->columns*n)+(m+1)]);
+    }
     return count;
 }
 
 int isAlive(char cell){
-    return cell=='0' ? 0 : 1;
+    int result;
+    if(cell=='0'){
+        result=0;
+    }else{
+        result=1;
+    }
+    //printf("%c è uguale a 0? %d\n",cell,result);
+    return result;
 }
 
 /** Permit to send the communication row to the process above */
@@ -384,15 +402,25 @@ MPI_Request send_down(Pworld * p,int rank,MPI_Datatype* row,int p_size){
     //printf("Send Down, Rank %d for %d e %d",rank+1%p_size,rank,4+1%p_size);
     fflush(stdout);
     MPI_Request r;
-    MPI_Isend(&(p->matrix[(p->rows)*(p->columns-2)]),1,*row,(rank+1)%p_size,14,MPI_COMM_WORLD,&r);
+    if(Master(rank)){
+        printf("I'm master and i'm sending row %d,\n",p->rows-1);
+    }
+    print_row(p,p->rows-1);
+    MPI_Isend(&(p->matrix[(p->columns)*(p->rows-1)]),1,*row,(rank+1)%p_size,14,MPI_COMM_WORLD,&r);
     return r;
 }
 
 /** Permit to receive the communication row from the process below**/
 MPI_Request * receive_up(Pworld * p,int rank,MPI_Datatype* row,int p_size){
+    int rank_toreceive;
+    if(Master(rank)){
+        rank_toreceive=p_size-1;
+    }else{
+        rank_toreceive=rank-1;
+    }
     MPI_Request * r;
     MPI_Status s;
-    MPI_Recv(&p->matrix[0],1,*row,(rank+1)%p_size,14,MPI_COMM_WORLD,&s);
+    MPI_Recv(&p->matrix[0],1,*row,rank_toreceive,14,MPI_COMM_WORLD,&s);
     return r;
 }
 
@@ -407,6 +435,6 @@ MPI_Request * receive_down(Pworld * p,int rank,MPI_Datatype* row,int p_size){
     }
     MPI_Request * r;
     MPI_Status s;
-    MPI_Recv(&p->matrix[0],1,*row,rank_tosend,14,MPI_COMM_WORLD,&s);
+    MPI_Recv(&p->matrix[0],1,*row,(rank+1)%p_size,14,MPI_COMM_WORLD,&s);
     return r;
 }
