@@ -18,6 +18,7 @@ Pworld* scatter_matrix(int n,int m);
 void print_world(Pworld * p);
 void print_all_matrix(Pworld * p);
 void print_row(Pworld * p, int i);
+void print_ghost_world(Pworld * p);
 Pworld* compute(Pworld * p,int rank,int world_size);
 
 MPI_Request send_up(Pworld * p,int rank,MPI_Datatype *row,int p_size);
@@ -38,7 +39,7 @@ int main (int argc, char* argv){
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     
     int generations=1;
-
+    int start_time=MPI_Wtime();
     Pworld* p = scatter_matrix(4,5);
     Pworld* updated_p;
     MPI_Datatype row;
@@ -78,74 +79,6 @@ int main (int argc, char* argv){
         print_row(updated_p,0);
     }
     MPI_Finalize();
-}
-
-Pworld* create_world(int n,int m){
-    Pworld * p=(Pworld *)malloc(sizeof(Pworld));
-    p->rows=n;
-    p->columns=m;
-    p->matrix= (char*) malloc(sizeof(char)*n*m);   
-    return p;
-}
-
-
-//init_world permit to initialize a new world with a random seed
-void init_world(Pworld * p,int seed){
-    srand(seed);
-    int c=0;
-	for (int i=0; i<p->rows*p->columns; i++){
-			p->matrix[i] = rand()%2 +'0';
-            c++;
-	}
-}
-
-//print_world permit to print the world on stdout
-void print_world(Pworld * p){
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    printf("Stampa il rank %d con righe %d:\n",rank,p->rows);
-    for(int i=0;i<p->rows*p->columns;i++){
-        if(i%p->columns==0){
-            printf("----");
-            printf("\nRiga:%d of rank %d\n",i/p->columns,rank);
-        }
-        printf("rank%d:%c,",rank,p->matrix[i]);
-    }
-}
-
-//print_world permit to print a single row of the world on stdout
-void print_row(Pworld * p, int i){
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    printf("Stampa la riga %d del rank %d con righe %d:\n",i,rank,p->rows);
-    for(int j=0;j<p->columns;j++){
-        printf("rank%d:%c,",rank,p->matrix[(i*p->columns)+j]);
-    }
-}
-
-//print_world permit to print the world on stdout
-void print_ghost_world(Pworld * p){
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    printf("Stampa il rank %d con righe %d:\n",rank,p->rows);
-    for(int i=0;i<p->rows*p->columns;i++){
-        if(i%p->columns==0){
-            printf("----");
-            printf("\nRiga:%d of rank %d\n",i/p->columns,rank);
-        }
-        printf("rank_ghost%d:%c,",rank,p->matrix[i]);
-    }
-}
-//print_world permit to print directly all the world with values
-void print_all_matrix(Pworld * p){
-    for(int i=0;i<p->rows*p->columns;i++){
-        if(i%p->columns==0){
-            printf("----");
-            printf("\n");
-        }
-        printf("%c,",p->matrix[i]);
-    }
-    printf("\n");
 }
 
 /**Permit to send the communication matrix from master to its slave processes**/
@@ -219,7 +152,6 @@ Pworld* scatter_matrix(int n,int m){
 
 //Compute the generation, returning a new updated world
 Pworld* compute(Pworld * p,int rank,int world_size){
-
     MPI_Datatype row;
     MPI_Type_contiguous(5,MPI_CHAR,&row);
     MPI_Type_commit(&row);
@@ -268,9 +200,15 @@ Pworld* compute(Pworld * p,int rank,int world_size){
             }
         }
     }
+    if(world_size>2){
+        request_receivetop=receive_up(top_ghostrow,rank,&row,world_size);
+        request_receivebottom=receive_down(bottom_ghostrow,rank,&row,world_size);
+    }else{
+        request_receivetop=receive_up(bottom_ghostrow,rank,&row,world_size);
+        request_receivebottom=receive_down(top_ghostrow,rank,&row,world_size);
+    }
+
     //trying to receive the two ghost_rows
-    request_receivetop=receive_up(bottom_ghostrow,rank,&row,world_size);
-    request_receivebottom=receive_down(top_ghostrow,rank,&row,world_size);
     if(Master(rank)){
         //MPI_Test(request_receivebottom,&received_bottom,status_receivebottom);
         //printf("Test for master:%d",received_bottom);
@@ -335,7 +273,6 @@ Pworld* compute(Pworld * p,int rank,int world_size){
     }
     return updated_world;
 }
-
 
 char alive_conditioner(char cell,int count){
     if(isAlive(cell)){
@@ -420,11 +357,11 @@ MPI_Request send_up(Pworld * p,int rank,MPI_Datatype* row,int p_size){
    }else{
        rank_tosend=rank-1;
    }
-  // printf("Rank %d for %d",rank_tosend,rank);
-    fflush(stdout);
-    MPI_Request r;
-    MPI_Isend(&(p->matrix[0]),1,*row,rank_tosend,14,MPI_COMM_WORLD,&r);
-    return r;
+   //printf("Rank %d for %d",rank_tosend,rank);
+   fflush(stdout);
+   MPI_Request r;
+   MPI_Isend(&(p->matrix[0]),1,*row,rank_tosend,14,MPI_COMM_WORLD,&r);
+   return r;
 }
 
 /** Permit to send the communication row to the process below**/
@@ -435,7 +372,6 @@ MPI_Request send_down(Pworld * p,int rank,MPI_Datatype* row,int p_size){
     if(Master(rank)){
     //    printf("I'm master and i'm sending row %d,\n",p->rows-1);
     }
-    print_row(p,p->rows-1);
     MPI_Isend(&(p->matrix[(p->columns)*(p->rows-1)]),1,*row,(rank+1)%p_size,14,MPI_COMM_WORLD,&r);
     return r;
 }
@@ -467,4 +403,76 @@ MPI_Request * receive_down(Pworld * p,int rank,MPI_Datatype* row,int p_size){
     MPI_Status s;
     MPI_Recv(&p->matrix[0],1,*row,(rank+1)%p_size,14,MPI_COMM_WORLD,&s);
     return r;
+}
+
+
+Pworld* create_world(int n,int m){
+    Pworld * p=(Pworld *)malloc(sizeof(Pworld));
+    p->rows=n;
+    p->columns=m;
+    p->matrix= (char*) malloc(sizeof(char)*n*m);   
+    return p;
+}
+
+
+
+
+
+//init_world permit to initialize a new world with a random seed
+void init_world(Pworld * p,int seed){
+    srand(seed);
+    int c=0;
+	for (int i=0; i<p->rows*p->columns; i++){
+			p->matrix[i] = rand()%2 +'0';
+            c++;
+	}
+}
+
+//print_world permit to print the world on stdout
+void print_world(Pworld * p){
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    printf("Stampa il rank %d con righe %d:\n",rank,p->rows);
+    for(int i=0;i<p->rows*p->columns;i++){
+        if(i%p->columns==0){
+            printf("----");
+            printf("\nRiga:%d of rank %d\n",i/p->columns,rank);
+        }
+        printf("rank%d:%c,",rank,p->matrix[i]);
+    }
+}
+
+//print_world permit to print a single row of the world on stdout
+void print_row(Pworld * p, int i){
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    printf("Stampa la riga %d del rank %d con righe %d:\n",i,rank,p->rows);
+    for(int j=0;j<p->columns;j++){
+        printf("rank%d:%c,",rank,p->matrix[(i*p->columns)+j]);
+    }
+}
+
+//print_world permit to print the world on stdout
+void print_ghost_world(Pworld * p){
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    printf("Stampa il rank %d con righe %d:\n",rank,p->rows);
+    for(int i=0;i<p->rows*p->columns;i++){
+        if(i%p->columns==0){
+            printf("----");
+            printf("\nRiga:%d of rank %d\n",i/p->columns,rank);
+        }
+        printf("rank_ghost%d:%c,",rank,p->matrix[i]);
+    }
+}
+//print_world permit to print directly all the world with values
+void print_all_matrix(Pworld * p){
+    for(int i=0;i<p->rows*p->columns;i++){
+        if(i%p->columns==0){
+            printf("----");
+            printf("\n");
+        }
+        printf("%c,",p->matrix[i]);
+    }
+    printf("\n");
 }
