@@ -1,0 +1,81 @@
+misuring:
+	mpicc gol_misuring.c -o gol_misuring
+	gcc create_file.c -o create_file
+	./create_file
+	
+	mpirun -np 1 gol_misuring 10 10 10 "strong_results_little.csv"
+	mpirun -np 2 gol_misuring 10 10 10 "strong_results_little.csv"
+	mpirun -np 3 gol_misuring 10 10 10 "strong_results_little.csv"
+	mpirun -np 4 gol_misuring 10 10 10 "strong_results_little.csv"
+	mpirun -np 5 gol_misuring 10 10 10 "strong_results_little.csv"
+	mpirun -np 6 gol_misuring 10 10 10 "strong_results_little.csv"
+	mpirun -np 7 gol_misuring 10 10 10 "strong_results_little.csv"
+	mpirun -np 8 gol_misuring 10 10 10 "strong_results_little.csv"
+	mpirun -np 9 gol_misuring 10 10 10 "strong_results_little.csv"
+	mpirun -np 10 gol_misuring 10 10 10 "strong_results_little.csv"
+	mpirun -np 11 gol_misuring 10 10 10 "strong_results_little.csv"
+	mpirun -np 12 gol_misuring 10 10 10 "strong_results_little.csv"
+	mpirun -np 13 gol_misuring 10 10 10 "strong_results_little.csv"
+	mpirun -np 14 gol_misuring 10 10 10 "strong_results_little.csv"
+	mpirun -np 15 gol_misuring 10 10 10 "strong_results_little.csv"
+	mpirun -np 16 gol_misuring 10 10 10 "strong_results_little.csv"
+
+	mpirun -np 1 gol_misuring 10 10 10 "strong_results_medium.csv"
+	mpirun -np 2 gol_misuring 10 10 10 "strong_results_medium.csv"
+	mpirun -np 3 gol_misuring 10 10 10 "strong_results_medium.csv"
+	mpirun -np 4 gol_misuring 10 10 10 "strong_results_medium.csv"
+	mpirun -np 5 gol_misuring 10 10 10 "strong_results_medium.csv"
+	mpirun -np 6 gol_misuring 10 10 10 "strong_results_medium.csv"
+	mpirun -np 7 gol_misuring 10 10 10 "strong_results_medium.csv"
+	mpirun -np 8 gol_misuring 10 10 10 "strong_results_medium.csv"
+	mpirun -np 9 gol_misuring 10 10 10 "strong_results_medium.csv"
+	mpirun -np 10 gol_misuring 10 10 10 "strong_results_medium.csv"
+	mpirun -np 11 gol_misuring 10 10 10 "strong_results_medium.csv"
+	mpirun -np 12 gol_misuring 10 10 10 "strong_results_medium.csv"
+	mpirun -np 13 gol_misuring 10 10 10 "strong_results_medium.csv"
+	mpirun -np 14 gol_misuring 10 10 10 "strong_results_medium.csv"
+	mpirun -np 15 gol_misuring 10 10 10 "strong_results_medium.csv"
+	mpirun -np 16 gol_misuring 10 10 10 "strong_results_medium.csv"
+
+	mpirun -np 1 gol_misuring 10 10 10 "strong_results_big.csv"
+	mpirun -np 2 gol_misuring 10 10 10 "strong_results_big.csv"
+	mpirun -np 3 gol_misuring 10 10 10 "strong_results_big.csv"
+	mpirun -np 4 gol_misuring 10 10 10 "strong_results_big.csv"
+	mpirun -np 5 gol_misuring 10 10 10 "strong_results_big.csv"
+	mpirun -np 6 gol_misuring 10 10 10 "strong_results_big.csv"
+	mpirun -np 7 gol_misuring 10 10 10 "strong_results_big.csv"
+	mpirun -np 8 gol_misuring 10 10 10 "strong_results_big.csv"
+	mpirun -np 9 gol_misuring 10 10 10 "strong_results_big.csv"
+	mpirun -np 10 gol_misuring 10 10 10 "strong_results_big.csv"
+	mpirun -np 11 gol_misuring 10 10 10 "strong_results_big.csv"
+	mpirun -np 12 gol_misuring 10 10 10 "strong_results_big.csv"
+	mpirun -np 13 gol_misuring 10 10 10 "strong_results_big.csv"
+	mpirun -np 14 gol_misuring 10 10 10 "strong_results_big.csv"
+	mpirun -np 15 gol_misuring 10 10 10 "strong_results_big.csv"
+	mpirun -np 16 gol_misuring 10 10 10 "strong_results_big.csv"
+
+
+
+	mpirun -np 1 gol_misuring 10 10 10 "weak_results_little.csv"
+	mpirun -np 2 gol_misuring 20 10 10 "weak_results_little.csv"
+	mpirun -np 3 gol_misuring 10 10 10 "weak_results_little.csv"
+	mpirun -np 4 gol_misuring 20 10 10 "weak_results_little.csv"
+	mpirun -np 5 gol_misuring 40 10 10 "weak_results_little.csv"
+	mpirun -np 6 gol_misuring 60 10 10 "weak_results_little.csv"
+
+
+	mpirun -np 1 gol_misuring 10 10 10 "weak_results_medium_r.csv"
+	mpirun -np 2 gol_misuring 20 10 10 "weak_results_medium_r.csv"
+	mpirun -np 3 gol_misuring 10 10 10 "weak_results_medium_r.csv"
+	mpirun -np 4 gol_misuring 20 10 10 "weak_results_medium_r.csv"
+	mpirun -np 5 gol_misuring 40 10 10 "weak_results_medium_r.csv"
+	mpirun -np 6 gol_misuring 60 10 10 "weak_results_medium_r.csv"
+
+
+	mpirun -np 1 gol_misuring 10 10 10 "weak_results_medium_c.csv"
+	mpirun -np 2 gol_misuring 20 10 10 "weak_results_medium_c.csv"
+	mpirun -np 3 gol_misuring 10 10 10 "weak_results_medium_c.csv"
+	mpirun -np 4 gol_misuring 20 10 10 "weak_results_medium_c.csv"
+	mpirun -np 5 gol_misuring 40 10 10 "weak_results_medium_c.csv"
+	mpirun -np 6 gol_misuring 60 10 10 "weak_results_medium_c.csv"
+
