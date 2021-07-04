@@ -1,9 +1,55 @@
--Game Of Life, MPI Implementation
+# Game Of Life, MPI Implementation
+Corso di Programmazione Concorrente e Parallela Su Cloud, Dipartimento di Informatica, Università degli Studi di Salerno
 
--Name: Gilberto Recupito 
+-Name: Gilberto Recupito , 0522500842
 
--Github: gilbertrec
 
+# Installazione
+Il seguente progetto presenta le seguenti versioni:
+
+ - **gol_animation.c** : esecuzione della versione animata semplice di Game Of Life
+ - **gol_correctness.c** : esecuzione della versione che stampa ogni generazione per la verifica di correttezza di Game Of Life
+ - **gol.c** : esecuzione della versione che misura le prestazioni di scalabilità debole e forte di Game Of Life
+ - **gol_misuring.c** : esecuzione della versione che misura e salva su file le prestazioni di scalabilità debole e forte di Game Of Life(utilizzabile anche attraverso Makefile)
+
+Per l'esecuzione del progetto è necessario eseguire le seguenti righe di comando:
+
+- gol_animation.c:
+
+```
+mpicc gol_animation.c -o animation
+
+mpirun -np <X> animation <N> <M> <G>
+```
+
+- gol_correctness.c:
+
+```
+mpicc gol_correctness.c -o correctness
+
+mpirun -np <X> correctness <N> <M> <G>
+```
+- gol.c :
+
+```
+mpicc gol.c -o gol
+
+mpirun -np <X> gol <N> <M> <G>
+```
+- gol_misuring.c :
+
+```
+mpicc gol_misuring.c -o gol_misuring
+
+mpirun -np <X> gol <N> <M> <G> <FILE>
+```  
+
+I parametri rappresentati sono i seguenti:
+- X: Numero di processi
+- N: Numero di righe della matrice
+- M: Numero di colonne della matrice
+- G: Numero di generazioni
+- FILE: nome del file su cui scrivere i risultati
 
 # Game Of Life: Indice di Progettazione
 La soluzione proposta per la realizzazione di questo progetto prevede principalmente la risoluzione attraverso i seguenti step:
@@ -56,15 +102,25 @@ void init_world(Pworld * p,int seed)
 
 Dove p rappresenta il mondo da inizializzare e seed il seme per la funzione di randomizzazione (rand())
 
-### Suddivisione e scattering 
+### Suddivisione 
 
 **Problema Affrontato: Suddivisione della matrice** 
 Questo problema principalmente presenta la suddivisione della matrice in sottomatrici da distribuire ai diversi processi. 
 Tra le soluzioni proposte le più rilevanti e analizzate sono state:
 
+
 1. Per righe
+
+![Rows](matrix_rows.png)
+
 2. Per colonne
+
+![Rows](matrix_columns.png)
+
 3. Per sottomatrici
+
+![Rows](matrix_submatrices.png)
+
 
 Per le tecniche 1 e 2 dobbiamo considerare la prima e l'ultima riga di ogni partizione distribuita come una riga esterna (ghost row), poichè serviranno ai processi adiacenti per effettuare completamente la computazione. Considerando quindi che ogni processo i quindi dovrà inviare una riga al processo i-1 e una riga al processo i+1 , avremmo per ogni generazione 2*p righe inviate.
 
@@ -73,6 +129,8 @@ Per la tecnica 3 invece dobbiamo considerare che per ogni cella nel bordo dobbia
 Per questo motivo, al fine di ridurre l'overhead di comunicazione tra i processi, si è deciso di utilizzare una delle prime due tecniche.
 
 In particolare, utilizzando C come linguaggio si è deciso di utilizzare la suddivisione per righe (1), poichè per la gestione dell'allocazione di memoria C presenta un orientamento di tipo row major.
+
+### Scattering
 Per la suddivisione della matrice è stata utilizzata il pattern di comunicazione **Scatter**, in particolare la funzione MPI_Scatterv(), dove nel nostro contesto, a differenza della classica funzione Scatter, ci permette di decidere quante righe inviare ad ogni processo.
 
 ```
@@ -165,7 +223,7 @@ Quindi ogni processo dovrà inviare corrispettivamente la prima e l'ultima riga 
 Il processo principalmente prevede i seguenti step:
 - **Invio non bloccante della riga superiore e inferiore**
 - **Computazione delle righe interne**
-- **Ricezione delle ghost rows e computazione delle righe esterne della matrice**
+- **Ricezione bloccante delle ghost rows e computazione delle righe esterne della matrice**
 
 Questa operazione è stata realizzata attraverso i metodi send_up() and send_down()
 Per questa operazione è stato deciso di utilizzare un invio non bloccante in modo che non bisogna aspettare il completamento per continuare la computazione.
@@ -240,3 +298,12 @@ MPI_Gatherv(&(updated_p->matrix[0]),sendcounts[rank],row,pointer_matrix_to_start
 ```
 
 L'array sendcounts e displs utilizzati sono analoghi a quelli utilizzati per l'operazione di Scatterv.
+
+# Misurazione Scalabilità
+Per l'esecuzione e la misurazione è stato riportato l'utilizzo del makefile in modo da automatizzare le diverse esecuzioni sul cluster di macchine utilzzate.
+Nel contesto della misurazione sono state assegnate delle macchine di tipo t2.xlarge, quindi con 4 VCPU.
+Quindi sono state utilizzate 4 macchine per avere a disposizione fino a 16 VCPUs.
+## Scalabilità Forte
+
+
+## Scalabilità Debole
