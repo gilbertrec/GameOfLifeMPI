@@ -3,6 +3,7 @@ Corso di Programmazione Concorrente e Parallela Su Cloud, Dipartimento di Inform
 
 -Name: Gilberto Recupito , 0522500842
 
+![Rows](forgif/animated.gif)
 
 # Installazione
 Il seguente progetto presenta le seguenti versioni:
@@ -299,11 +300,113 @@ MPI_Gatherv(&(updated_p->matrix[0]),sendcounts[rank],row,pointer_matrix_to_start
 
 L'array sendcounts e displs utilizzati sono analoghi a quelli utilizzati per l'operazione di Scatterv.
 
+# Correttezza 
+Per verificare la correttezza dell'algoritmo è stato utilizzata la versione *gol_correctness.c*, che ci permette di visualizzare il risultato di ogni generazione.
+Allo scopo di valutare la correttezza è stato deciso di verificare se al variare del numero di processori, l'algoritmo portasse lo stesso risultato considerando lo stessa matrice di input.
+In particolare per ottenere lo stesso input, la generazione della matrice viene effettuata attraverso una generazione casuale con lo stesso seme (in particolare il seme è 0):
+
+```
+//Initialize the world p with the seed 0
+init_world(p,0);
+```
+
+L'esecuzione ha portato i seguenti risultati:
+
+- Esecuzione con matrice 10 *10 a 10 generazioni:
+![Rows](correctness/correctness_1.png)
+
+- Esecuzione con matrice 12 *18 a 10 generazioni:
+![Rows](correctness/correctness_2.png)
+
 # Misurazione Scalabilità
 Per l'esecuzione e la misurazione è stato riportato l'utilizzo del makefile in modo da automatizzare le diverse esecuzioni sul cluster di macchine utilzzate.
 Nel contesto della misurazione sono state assegnate delle macchine di tipo t2.xlarge, quindi con 4 VCPU.
 Quindi sono state utilizzate 4 macchine per avere a disposizione fino a 16 VCPUs.
-## Scalabilità Forte
+## Impostazione 
+Per ogni test è stato deciso di eseguire ogni esecuzione che prevedesse l'utilizzo da 1 processo a 16 processi.
+
+L'esecuzione e la misurazione di scalabilità di sistema è stata prefissata e progettata nel seguente modo:
+## How to 
+Per effettuare i test è stato necessario utilizzare il file *gol_misuring.c* in modo da registrare i risultati in appositi file di tipo *csv*.
+
+Per automatizzare i test è stato quindi deciso di utilizzare un Makefile (disponibile nel repository).
+
+Per accedere alla misurazione del test basta quindi posizionarsi nella cartella del progetto *GameOfLifeMPI* e eseguire il seguente comando:
+```
+make
+```
+NB: modificare prima il Makefile per impostare le esecuzioni e le dimensioni dei test.
+
+- **Scalabilità Forte:** Esecuzione dell'algoritmo con una dimensione prefissata della matrice.
+
+|Dimensione test| Numero Processi | N | M | G |
+|--- | --- | --- | --- | --- |
+|Little| da 1 a 16 | 200 | 200 | 100 |
+|Medium| da 1 a 16 | 2000 | 2000 | 100 |
+|Big| da 1 a 16 | 5000 | 5000 | 100 |
+
+- **Scalabilità Debole:** Esecuzione dell'algoritmo con un rapporto processo/quantità di dati prefissato
+
+|Dimensione test| Numero Processi | N | M | G |
+|--- | --- | --- | --- | --- |
+|Little| da 1 a 16 | da 100 a 1600| 100 | 100 |
+|Medium| da 1 a 16 | da 1000 a 16000 | 1000 | 100 |
+|Big| da 1 a 16 |da 2000 a 32000 | 1000 | 100 |
+
+## Risultati
+Per analizzare i risultati si tiene in considerazione l'utilizzo dell'algoritmo in sequenziale e dell'utilizzo in parallelo per vedere il suo effetto.
+
+### Scalabilità Forte
+
+ - **Little** : Matrice 100x100 (Tempo in secondi)
+
+![Rows](results/strong_little.png)
+
+Già da un'esecuzione di bassa computazione dovuta alle piccole dimensioni della matrice è possibile vedere l'effetto importante che dà l'algoritmo parallelo rispetto al sequenziale in tempi di esecuzioni.
+Importante notare come da un numero di processi maggiore di 9 si è ritrovato un aumento del tempo di esecuzione, possibilmente dovuto al tempo di comunicazione tra i diversi processi.
+In questo test il risultato migliore è stato registrato con 6 processi con il tempo di: 0.081532 secondi.
 
 
-## Scalabilità Debole
+ - **Medium** : Matrice 2000x2000 (Tempo in secondi)
+
+![Rows](results/strong_medium.png)
+
+Proporzionalmente a quanto detto prima, al crescere della matrice l'effetto della parallelizzazione aumenta con un notevole impatto.
+Al crescere del numero di processi, lo speedup relativo non aumenta considerevolmente, ma comunque non porta a considerevoli peggioramenti.
+
+ - **Big** : Matrice 5000x5000 (Tempo in secondi)
+
+![Rows](results/strong_big.png)
+
+In definitiva eseguendo il test su una matrice più grande, manteniamo gli stessi effetti di parallelizzazione.
+Registriamo quindi uno speedup relativo pari a:
+
+
+
+![Rows](plots/relative_Speedup.png)
+
+
+
+### Scalabilità Debole
+
+ - **Little** : Matrice 100x100 (Tempo in secondi)
+
+![Rows](results/weak_little.png)
+
+ - **Medium** : Matrice 2000x2000 (Tempo in secondi)
+
+![Rows](results/weak_medium.png)
+
+
+ - **Big** : Matrice 5000x5000 (Tempo in secondi)
+
+![Rows](results/weak_big.png)
+
+
+Per quanto riguarda i risultati di scalabilità debole del nostro sistema, possiamo vedere come mantenendo costante il numero di dati da computare per ogni processo, il tempo di esecuzione aumenta. Notando particolari effetti nell'esecuzione piccola, è possibile che l'aumento del tempo di esecuzione sia dovuto alla comunicazione tra i processi per lo scambio delle righe.
+Infine è possibile notare che questo è effetto è visibile solo per una bassa quantità di dati da computare, e quindi non crea effetti considerevoli e che aumentano proporzionalmente alla dimensione dei dati di computazione, ma in quantità di dati maggiori l'algoritmo riesce a non avere variazioni considerevoli di esecuzione di tempo all'aumento dei dati e quindi si può considerare che i dati possono essere equalmente distribuiti tra i diversi processi.
+
+# Conclusioni
+
+In definitiva questo progetto mostra un notevole effetto e importanza nell'utilizzo della parallelizzazione per determinati algoritmi, portando risultati determinanti. 
+Per ottenere risultati eccellenti però, è necessario far fronte a differenti problemi che molte volte sono anche impossibili da mitigare, come l'overhead di comunicazione e il sovraccarico delle macchine.
